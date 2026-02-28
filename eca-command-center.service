@@ -1,0 +1,42 @@
+# ──────────────────────────────────────────────────────────────
+# ECA Command Center — systemd Service Unit
+# ──────────────────────────────────────────────────────────────
+# Install:
+#   sudo cp eca-command-center.service /etc/systemd/system/
+#   sudo systemctl daemon-reload
+#   sudo systemctl enable --now eca-command-center
+#
+# Manage:
+#   sudo systemctl status eca-command-center
+#   sudo systemctl restart eca-command-center
+#   journalctl -u eca-command-center -f
+# ──────────────────────────────────────────────────────────────
+
+[Unit]
+Description=ECA Command Center Dashboard - Production
+Documentation=https://github.com/ohyeaheasymoney/EcaCCDashBoard_Prod
+After=network.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=eca
+Group=eca
+WorkingDirectory=/home/eca/eca-command-center
+EnvironmentFile=-/home/eca/eca-command-center/.env
+Environment="PATH=/home/eca/eca-command-center/venv/bin:/usr/local/bin:/usr/bin:/bin"
+ExecStart=/home/eca/eca-command-center/start.sh
+ExecReload=/bin/kill -HUP $MAINPID
+Restart=always
+RestartSec=5
+TimeoutStopSec=30
+
+# Security hardening
+NoNewPrivileges=true
+ProtectSystem=strict
+ReadWritePaths=/home/eca/eca-command-center
+ProtectHome=tmpfs
+BindPaths=/home/eca/eca-command-center
+
+[Install]
+WantedBy=multi-user.target

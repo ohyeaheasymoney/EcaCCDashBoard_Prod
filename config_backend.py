@@ -770,12 +770,12 @@ def db_list_jobs() -> List[Dict[str, Any]]:
 _init_db()
 
 
-PLAYBOOK_ROOT = "/var/lib/rundeck/projects/ansible/DellServerAuto/MainPlayBook/Test4/DellServerAuto_4"
+PLAYBOOK_ROOT = os.environ.get("ECA_PLAYBOOK_DIR", "/var/lib/rundeck/projects/ansible/DellServerAuto/MainPlayBook/Test4/DellServerAuto_4")
 CENTRAL_GENERATE_INVENTORY = os.path.join(PLAYBOOK_ROOT, "generate_inventory.py")
 
 # IMPORTANT: your generate_inventory.py is writing to this (per your output)
 # so we fall back to it if --out isn't honored.
-FALLBACK_GENERATED_HOSTS = "/var/lib/rundeck/projects/ansible/DellServerAuto/MainPlayBook/Test4/hosts"
+FALLBACK_GENERATED_HOSTS = os.path.join(os.path.dirname(PLAYBOOK_ROOT), "hosts")
 
 DEFAULT_INVENTORY_NAME = "target_hosts"
 
@@ -914,7 +914,7 @@ def _ensure_job_dirs(job_id: str) -> None:
     os.makedirs(os.path.join(_job_dir(job_id), "TSR"), exist_ok=True)
     os.makedirs(os.path.join(_job_dir(job_id), "QuickQC"), exist_ok=True)
 
-NFS_HOST = "10.3.3.157"
+NFS_HOST = os.environ.get("ECA_NFS_HOST", "10.3.3.157")
 
 
 def _generate_vars_yml(job_id: str, _job: Optional[Dict[str, Any]] = None) -> str:

@@ -12,12 +12,16 @@ Production deployment of the ECA Command Center, a web-based automation platform
 - [Network Configuration](#network-configuration)
 - [Project Structure](#project-structure)
 - [Deployment Guide](#deployment-guide)
+- [Docker Deployment](#docker-deployment)
+- [Environment Configuration](#environment-configuration)
 - [Playbooks Reference](#playbooks-reference)
 - [Workflows](#workflows)
 - [Configuration Reference](#configuration-reference)
 - [User Management](#user-management)
+- [Backup & Restore](#backup--restore)
 - [NFS Share Setup](#nfs-share-setup)
 - [Firewall Rules](#firewall-rules)
+- [CI/CD Pipeline](#cicd-pipeline)
 - [Troubleshooting](#troubleshooting)
 
 ---
@@ -143,12 +147,24 @@ EcaCCDashBoard_Prod/
 ├── config_backend.py            # Business logic: jobs, inventory, TSR, runs
 ├── manage_users.py              # CLI user management tool
 ├── deploy.sh                    # Automated production deployment script
-├── start.sh                     # Production launcher (gunicorn)
-├── nginx.conf                   # Nginx reverse proxy configuration
+├── start.sh                     # Production launcher (gunicorn, env-configurable)
+├── nginx.conf                   # Nginx reverse proxy config (with security headers)
+├── nginx-docker.conf            # Nginx config for Docker Compose deployment
 ├── requirements.txt             # Python dependencies
 ├── workflows.json               # Workflow definitions (tasks, tags, presets)
-├── customers.json               # Customer definitions
+├── .env.example                 # Environment variable template
 ├── .gitignore
+├── Dockerfile                   # Container build for the app
+├── docker-compose.yml           # Multi-container deployment (app + nginx)
+├── eca-command-center.service   # systemd unit file (version-controlled)
+├── eca-command-center.logrotate # Log rotation configuration
+│
+├── scripts/                     # Operational scripts
+│   ├── backup.sh                # Database & config backup (cron-ready)
+│   └── restore.sh               # Restore from backup archive
+│
+├── .github/workflows/           # CI/CD
+│   └── ci.yml                   # Lint, YAML validation, Docker build test
 │
 ├── static/                      # Frontend GUI (served by nginx/flask)
 │   ├── index.html               # Single-page app shell
@@ -325,6 +341,67 @@ Access the UI at `http://<server-ip>/` (port 80) instead of `:5000`.
 
 ---
 
+## Docker Deployment
+
+### Quick Start with Docker Compose
+
+```bash
+# 1. Clone the repo
+git clone git@github.com:ohyeaheasymoney/EcaCCDashBoard_Prod.git
+cd EcaCCDashBoard_Prod
+
+# 2. Create your .env file
+cp .env.example .env
+# Edit .env with your NFS host, playbook path, etc.
+
+# 3. Launch (app + nginx)
+docker compose up -d
+
+# 4. Check status
+docker compose ps
+docker compose logs -f eca-command-center
+```
+
+Access at `http://localhost/` (port 80 via nginx) or `http://localhost:5000` (direct).
+
+### Docker Only (no nginx)
+
+```bash
+docker build -t eca-command-center .
+docker run -d --name eca \
+    -p 5000:5000 \
+    -v eca-jobs:/home/eca/eca-command-center/jobs \
+    --env-file .env \
+    eca-command-center
+```
+
+---
+
+## Environment Configuration
+
+All configuration is driven by environment variables. Copy `.env.example` to `.env` and customize:
+
+```bash
+cp .env.example .env
+```
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `ECA_USER` | `eca` | Linux user that runs the app |
+| `ECA_APP_DIR` | `/home/eca/eca-command-center` | Application install directory |
+| `ECA_PORT` | `5000` | Gunicorn listen port |
+| `ECA_BIND` | `127.0.0.1` | Bind address (`0.0.0.0` without nginx) |
+| `ECA_WORKERS` | `4` | Gunicorn worker processes |
+| `ECA_THREADS` | `4` | Threads per worker |
+| `ECA_TIMEOUT` | `300` | Request timeout (seconds) |
+| `ECA_MAX_REQUESTS` | `1000` | Restart worker after N requests (memory leak prevention) |
+| `ECA_PLAYBOOK_DIR` | `/var/lib/rundeck/.../DellServerAuto_4` | Ansible playbook directory |
+| `ECA_NFS_HOST` | `10.3.3.157` | NFS server for firmware storage |
+
+The `deploy.sh` script automatically creates `.env` from `.env.example` during installation. The `start.sh` launcher sources `.env` at startup.
+
+---
+
 ## Playbooks Reference
 
 ### Server Build Playbooks
@@ -454,6 +531,34 @@ venv/bin/python3 manage_users.py delete <username>
 
 ---
 
+## Backup & Restore
+
+### Automated Daily Backups
+
+The `deploy.sh` script installs a cron job that runs `scripts/backup.sh` daily at 2:00 AM. Backups include:
+- SQLite database (`jobs.db`) — safe WAL-mode backup
+- `workflows.json`, `customers.json`, `users.json`, `.env`
+
+Backups are compressed and stored in the `backups/` directory. The last 14 days are retained.
+
+### Manual Backup
+
+```bash
+bash scripts/backup.sh
+```
+
+### Restore from Backup
+
+```bash
+# List available backups
+bash scripts/restore.sh
+
+# Restore a specific backup (stops and restarts the service)
+bash scripts/restore.sh backups/backup_20260228_020000.tar.gz
+```
+
+---
+
 ## NFS Share Setup
 
 The NFS share at `10.3.3.157` is used to serve firmware files and BIOS XML configurations to Dell servers during provisioning.
@@ -533,6 +638,19 @@ sudo systemctl stop eca-command-center
 # Application log file
 tail -f /home/eca/eca-command-center/server.log
 ```
+
+---
+
+## CI/CD Pipeline
+
+GitHub Actions runs on every push and PR to `main`:
+
+1. **Lint** — `flake8` checks Python code style
+2. **YAML Validation** — `yamllint` validates all playbook syntax
+3. **Credential Scan** — Checks for hardcoded passwords/secrets
+4. **Docker Build** — Builds the container image and verifies it starts with a health check
+
+The workflow is defined in `.github/workflows/ci.yml`.
 
 ---
 

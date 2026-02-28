@@ -1,0 +1,18 @@
+# ECA Command Center — Logrotate Configuration
+# Install: sudo cp eca-command-center.logrotate /etc/logrotate.d/eca-command-center
+
+/home/eca/eca-command-center/server.log
+/home/eca/eca-command-center/audit.log
+{
+    daily
+    missingok
+    rotate 14
+    compress
+    delaycompress
+    notifempty
+    create 0644 eca eca
+    sharedscripts
+    postrotate
+        systemctl reload eca-command-center >/dev/null 2>&1 || true
+    endscript
+}
