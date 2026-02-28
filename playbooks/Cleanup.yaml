@@ -1,0 +1,20 @@
+---
+- name: Clear JobQueue
+  raw: racadm jobqueue delete -i ALL
+  register: jobqueue_result
+  changed_when: false
+  tags: [cleanup]
+
+- debug:
+    msg: "{{ jobqueue_result.stdout }}"
+  tags: [cleanup]
+
+- name: Clear SystemEvent
+  raw: racadm clrsel
+  register: systemevent_result
+  changed_when: false
+  tags: [cleanup]
+
+- debug:
+    msg: "{{ systemevent_result.stdout }}"
+  tags: [cleanup]

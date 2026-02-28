@@ -1,0 +1,44 @@
+- name: Run Dell RACADM command to get sysinfo
+  raw: racadm getsysinfo
+  register: racadm_output
+  tags: [tsr, export, supportAssist]
+
+- name: Extract SVC Tag from sysinfo output
+  shell: echo "{{ racadm_output.stdout }}" | grep "SVC Tag"
+  register: filtered_output
+  delegate_to: localhost
+  tags: [tsr, export, supportAssist]
+
+- name: Display filtered serial number for reference
+  debug:
+    msg: "Filtered Serial Number for {{ inventory_hostname }}: {{ filtered_output.stdout }}"
+  tags: [tsr, export, supportAssist]
+
+- name: Set the file name for diagnostics export
+  set_fact:
+    svc_tag: "{{ filtered_output.stdout | regex_replace('^SVC Tag\\s*=\\s*', '') }}"
+    diagnostics_file_name: "{{ filtered_output.stdout | regex_replace('^SVC Tag\\s*=\\s*', '') }}_diagnostics.txt"
+  tags: [tsr, export, supportAssist]
+
+- name: Run Dell EMC SupportAssist Collection
+  dellemc.openmanage.idrac_support_assist:
+    idrac_ip: "{{ idrac_ip }}"
+    idrac_user: "{{ idrac_user }}"
+    idrac_password: "{{ idrac_password }}"
+    accept_eula: true
+    data_collector:
+      - "hardware_data"
+      - "storage_logs"
+    export: true
+    share_parameters:
+      share_type: "local"
+      share_name: "{{ local_path_tsr }}"
+    validate_certs: "{{ validate_certs }}"
+  delegate_to: localhost
+  tags: [tsr, export, supportAssist]
+
+- name: Rename output file to match TSR format
+  command: >
+    python3 rename_file.py "{{ local_path_tsr }}" "{{ inventory_hostname }}" "{{ svc_tag }}"
+  delegate_to: localhost
+  tags: [tsr, export, supportAssist]

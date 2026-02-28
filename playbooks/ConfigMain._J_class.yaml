@@ -1,0 +1,160 @@
+---
+- name: Config Build Part - J Class
+  hosts: target_hosts
+  gather_facts: false
+
+  vars_files:
+    - vars.yml
+
+  tasks:
+
+    ########################################################################
+    # ──────── FIRST RUN ────────
+    ########################################################################
+
+    - name: PowerUp (Run 1)
+      include_tasks: PowerUp.yaml
+      tags: [powerup, provision]
+
+    - name: Pause after PowerUp (Run 1)
+      pause:
+        seconds: "{{ pause_powerup_seconds }}"
+      tags: [pause, powerup]
+
+    - name: Enable LLDP (Run 1)
+      include_tasks: Enable_LLDP.yaml
+      tags: [lldp, configure]
+
+    - name: Pause after LLDP (Run 1)
+      pause:
+        seconds: "{{ pause_lldp_seconds }}"
+      tags: [pause, lldp]
+
+    - name: RackSlot (Run 1)
+      include_tasks: RackSlot.yaml
+      tags: [rackslot, provision]
+
+    - name: Asset Tag (Run 1)
+      include_tasks: asset_tag.yaml
+      tags: [assettag, provision]
+
+    - name: Pause for provision tasks (Run 1)
+      pause:
+        seconds: "{{ pause_provision_seconds }}"
+      tags: [pause, provision]
+
+    - name: Firmware (Run 1)
+      include_tasks: Firmware.yaml
+      tags: [firmware, update]
+
+    - name: Pause after firmware update (Run 1)
+      pause:
+        seconds: "{{ pause_firmware_seconds }}"
+      tags: [pause, firmware]
+
+    - name: Power Cycle (Run 1)
+      include_tasks: powercycle.yaml
+      tags: [powercycle, reboot]
+
+    - name: Pause after Power Cycle (Run 1)
+      pause:
+        seconds: "{{ pause_reboot_seconds }}"
+      tags: [pause, powercycle]
+
+    - name: Configure iDRAC (Run 1)
+      include_tasks: Configure_iDRAC.yml
+      tags: [idrac, configure]
+
+    - name: Pause after iDRAC configuration (Run 1)
+      pause:
+        seconds: "{{ pause_configure_seconds }}"
+      tags: [pause, configure]
+
+    - name: Power Cycle (Run 1 - Final)
+      include_tasks: powercycle.yaml
+      tags: [powercycle, reboot]
+
+    - name: Pause after final Power Cycle (Run 1)
+      pause:
+        seconds: "{{ pause_powercycle_seconds }}"
+      tags: [pause, powercycle]
+
+
+    ########################################################################
+    # ──────── SECOND RUN ────────
+    ########################################################################
+
+    - name: Enable LLDP (Run 2)
+      include_tasks: Enable_LLDP.yaml
+      tags: [lldp, configure]
+
+    - name: Pause after LLDP (Run 2)
+      pause:
+        seconds: "{{ pause_lldp_seconds }}"
+      tags: [pause, lldp]
+
+    - name: RackSlot (Run 2)
+      include_tasks: RackSlot.yaml
+      tags: [rackslot, provision]
+
+    - name: Asset Tag (Run 2)
+      include_tasks: asset_tag.yaml
+      tags: [assettag, provision]
+
+    - name: Pause for provision tasks (Run 2)
+      pause:
+        seconds: "{{ pause_provision_seconds }}"
+      tags: [pause, provision]
+
+    - name: Firmware (Run 2)
+      include_tasks: Firmware.yaml
+      tags: [firmware, update]
+
+    - name: Pause after firmware update (Run 2)
+      pause:
+        seconds: "{{ pause_firmware_seconds }}"
+      tags: [pause, firmware]
+
+    - name: Power Cycle (Run 2)
+      include_tasks: powercycle.yaml
+      tags: [powercycle, reboot]
+
+    - name: Pause after Power Cycle (Run 2)
+      pause:
+        seconds: "{{ pause_reboot_seconds }}"
+      tags: [pause, powercycle]
+
+    - name: Configure iDRAC (Run 2)
+      include_tasks: Configure_iDRAC.yml
+      tags: [idrac, configure]
+
+    - name: Pause after iDRAC configuration (Run 2)
+      pause:
+        seconds: "{{ pause_configure_seconds }}"
+      tags: [pause, configure]
+
+    - name: Power Cycle (Run 2 - Final)
+      include_tasks: powercycle.yaml
+      tags: [powercycle, reboot]
+
+    - name: Pause after final Power Cycle (Run 2)
+      pause:
+        seconds: "{{ pause_powercycle_seconds }}"
+      tags: [pause, powercycle]
+
+
+    ########################################################################
+    # ──────── FINAL SUMMARY ────────
+    ########################################################################
+
+    - name: Debug Output
+      debug:
+        msg:
+          - "✅ Run 1 completed sequence:"
+          - "    PowerUp → LLDP → RackSlot → AssetTag → Firmware → PowerCycle → Configure iDRAC → PowerCycle (Final)"
+          - ""
+          - "✅ Run 2 completed sequence:"
+          - "    LLDP → RackSlot → AssetTag → Firmware → PowerCycle → Configure iDRAC → PowerCycle (Final)"
+          - ""
+          - "🎯 All configuration build steps for {{ inventory_hostname }} (J Class) completed successfully after both runs."
+      tags: [complete, summary]

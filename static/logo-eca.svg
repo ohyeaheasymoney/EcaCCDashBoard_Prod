@@ -1,0 +1,47 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 80" width="400" height="80">
+  <defs>
+    <linearGradient id="shield-grad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#3b82f6"/>
+      <stop offset="100%" stop-color="#1d4ed8"/>
+    </linearGradient>
+    <linearGradient id="pulse-grad" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#60a5fa"/>
+      <stop offset="100%" stop-color="#93c5fd"/>
+    </linearGradient>
+    <filter id="glow">
+      <feGaussianBlur stdDeviation="1.5" result="blur"/>
+      <feMerge>
+        <feMergeNode in="blur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+  </defs>
+
+  <!-- Shield / badge shape -->
+  <path d="M8 12 L36 4 L64 12 L64 40 Q64 60 36 72 Q8 60 8 40 Z"
+        fill="url(#shield-grad)" rx="2"/>
+
+  <!-- Terminal bracket > inside shield -->
+  <polyline points="24 28 40 40 24 52"
+            fill="none" stroke="#ffffff" stroke-width="4"
+            stroke-linecap="round" stroke-linejoin="round"/>
+  <!-- Cursor line -->
+  <line x1="42" y1="52" x2="52" y2="52"
+        stroke="url(#pulse-grad)" stroke-width="3.5"
+        stroke-linecap="round" filter="url(#glow)">
+    <animate attributeName="opacity" values="1;0.3;1" dur="1.8s" repeatCount="indefinite"/>
+  </line>
+
+  <!-- ECA text -->
+  <text x="80" y="38" font-family="'Inter','Segoe UI',system-ui,sans-serif"
+        font-size="34" font-weight="800" letter-spacing="2" fill="#e2e8f0">ECA</text>
+
+  <!-- Command Center text -->
+  <text x="81" y="58" font-family="'Inter','Segoe UI',system-ui,sans-serif"
+        font-size="14" font-weight="500" letter-spacing="4"
+        fill="#64748b" text-transform="uppercase">COMMAND CENTER</text>
+
+  <!-- Decorative accent line -->
+  <line x1="80" y1="43" x2="220" y2="43"
+        stroke="url(#pulse-grad)" stroke-width="1" opacity="0.3"/>
+</svg>

@@ -1,0 +1,50 @@
+# ───── Run Dell Diagnostics and Export Results ─────
+
+- name: Gather system info from iDRAC
+  raw: racadm getsysinfo
+  register: racadm_sysinfo
+  changed_when: false
+  tags: [diagnostics, healthcheck]
+
+- name: Extract Service Tag from sysinfo output
+  set_fact:
+    svc_tag: "{{ (racadm_sysinfo.stdout | regex_search('SVC Tag\\s*=\\s*(\\S+)', '\\1')) | default('Unknown', true) }}"
+  changed_when: false
+  tags: [diagnostics, healthcheck]
+
+- name: Display Service Tag
+  debug:
+    msg: "🔍 Service Tag for {{ inventory_hostname }}: {{ svc_tag }}"
+  tags: [diagnostics, healthcheck]
+
+- name: Define diagnostics export file name
+  set_fact:
+    diagnostics_file_name: "{{ svc_tag }}_diagnostics.txt"
+  changed_when: false
+  tags: [diagnostics, healthcheck]
+
+- name: Run Dell EMC iDRAC Diagnostics and export results
+  dellemc.openmanage.idrac_diagnostics:
+    idrac_ip: "{{ idrac_ip }}"
+    idrac_user: "{{ idrac_user }}"
+    idrac_password: "{{ idrac_password }}"
+    run: true
+    export: true
+    job_wait: "{{ job_wait }}"
+    share_parameters:
+      share_type: "local"
+      share_name: "{{ local_path }}"
+      file_name: "{{ diagnostics_file_name }}"
+    validate_certs: "{{ validate_certs }}"
+  delegate_to: localhost
+  register: diag_result
+  tags: [diagnostics, healthcheck]
+
+- name: Confirm diagnostics export success
+  debug:
+    msg:
+      - "✅ Diagnostics completed for {{ inventory_hostname }}"
+      - "📁 Exported file: {{ local_path }}/{{ diagnostics_file_name }}"
+      - "🧾 Job status: {{ diag_result.job_status if diag_result is defined else 'Unknown' }}"
+  tags: [diagnostics, healthcheck]
+

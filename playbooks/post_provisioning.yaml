@@ -1,0 +1,38 @@
+---
+- name: Post Provisioning  
+  hosts: target_hosts
+  gather_facts: false
+
+  vars_files:
+    - vars.yml
+
+  tasks:
+    - name: Collect/Export TSR
+      include_tasks: supportAssist.yaml
+      ignore_errors: true
+      tags: [tsr, export, supportAssist]
+
+    - name: Pause for 5 minutes
+      pause:
+        seconds: 300
+      tags: [pause, tsr]
+
+    - name: CleanUp
+      include_tasks: Cleanup.yaml
+      ignore_errors: true
+      tags: [cleanup]
+
+    - name: Pause for 5 minutes
+      pause:
+        seconds: 300
+      tags: [pause, cleanup]
+
+    - name: PowerDown
+      include_tasks: PowerDown.yaml
+      ignore_errors: true
+      tags: [powerdown, shutdown]
+
+    - name: Debug Output
+      debug:
+        msg: "All tasks completed successfully"
+      tags: [complete, summary]

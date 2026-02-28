@@ -1,0 +1,76 @@
+---
+- name: Quick Dell Inventory with Python post-processing
+  hosts: target_hosts
+  gather_facts: false
+
+  vars_files:
+    - vars.yml
+
+  tasks:
+
+    - name: Get System Info
+      dellemc.openmanage.idrac_system_info:
+        idrac_ip: "{{ inventory_hostname }}"
+        idrac_user: "{{ idrac_user }}"
+        idrac_password: "{{ idrac_password }}"
+        validate_certs: "{{ validate_certs }}"
+      register: sysinfo
+      delegate_to: 127.0.0.1
+
+    - name: Get Firmware Info
+      dellemc.openmanage.idrac_firmware_info:
+        idrac_ip: "{{ inventory_hostname }}"
+        idrac_user: "{{ idrac_user }}"
+        idrac_password: "{{ idrac_password }}"
+        validate_certs: "{{ validate_certs }}"
+      register: fwinfo
+      delegate_to: 127.0.0.1
+
+    - name: Get RackOffset from iDRAC
+      ansible.builtin.command: >
+        curl -s -k -u {{ idrac_user }}:{{ idrac_password }}
+        https://{{ inventory_hostname }}/redfish/v1/Chassis/System.Embedded.1
+        -H "Content-Type: application/json"
+      register: rack_raw
+      delegate_to: 127.0.0.1
+
+    - name: Parse RackOffset
+      ansible.builtin.set_fact:
+        rack_offset: "{{ rack_raw.stdout | regex_search('\"RackOffset\":\\s*([0-9]+)', '\\1') | default('N/A') }}"
+
+    - name: Extract ServiceTag and AssetTag
+      ansible.builtin.set_fact:
+        service_tag: "{{ sysinfo.system_info.System[0].ServiceTag }}"
+        asset_tag: "{{ sysinfo.system_info.System[0].AssetTag }}"
+
+    - name: Save combined data for formatter
+      ansible.builtin.copy:
+        dest: "{{ local_path_QuickQC }}/dell_inventory_{{ inventory_hostname }}.json"
+        content: |
+          {
+            "host": "{{ inventory_hostname }}",
+            "sysinfo": {{ sysinfo | to_nice_json }},
+            "fwinfo": {{ fwinfo | to_nice_json }},
+            "rack_offset": "{{ rack_offset }}"
+          }
+      delegate_to: 127.0.0.1
+
+    # Optional: still save raw firmware YAML for standalone debug if you want
+    - name: Save raw firmware data YAML (optional debug)
+      ansible.builtin.copy:
+        dest: "{{ local_path }}/{{ service_tag }}_firmware_inventory_raw.txt"
+        content: "{{ fwinfo | to_nice_yaml }}"
+      delegate_to: 127.0.0.1
+
+    - name: Run QuickQC formatter (mapping + firmware)
+      ansible.builtin.command: >
+        python3 format_dell_inventoryTemplate.py quickqc
+        {{ local_path_QuickQC }}/dell_inventory_{{ inventory_hostname }}.json
+      args:
+        chdir: "{{ playbook_dir }}"
+      delegate_to: 127.0.0.1
+      environment:
+        ANSIBLE_LAST_HOST: "{{ ansible_play_hosts_all | last }}"
+      changed_when: false
+      no_log: true
+

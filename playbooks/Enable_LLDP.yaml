@@ -1,0 +1,29 @@
+    - name: Enable LLDP Topology
+      raw: racadm set iDRAC.NIC.TopologyLLDP 1
+
+    - name: Enable LLDP Discovery
+      raw: racadm set iDRAC.NIC.DiscoveryLLDP 1
+
+    - name: Restart iDRAC network interface
+      raw: racadm racresetnic
+
+    - name: Wait for iDRAC to come back online
+      pause:
+        minutes: 5
+
+    - name: Get LLDP configuration
+      raw: racadm get iDRAC.NIC
+      register: lldp_status
+
+    - name: Extract LLDP parameters
+      set_fact:
+        topology: "{{ (lldp_status.stdout | regex_search('(?i)TopologyLldp\\s*=\\s*(\\S+)', '\\1')) | default('Not Found') }}"
+        discovery: "{{ (lldp_status.stdout | regex_search('(?i)DiscoveryLLDP\\s*=\\s*(\\S+)', '\\1')) | default('Not Found') }}"
+        macaddr: "{{ (lldp_status.stdout | regex_search('(?i)MACAddress\\s*=\\s*([0-9A-Fa-f:]+)', '\\1')) | default('Not Found') }}"
+
+    - name: Display clean LLDP summary
+      debug:
+        msg: |
+          TopologyLLDP={{ topology }}
+          DiscoveryLLDP={{ discovery }}
+          MACAddress={{ macaddr }}

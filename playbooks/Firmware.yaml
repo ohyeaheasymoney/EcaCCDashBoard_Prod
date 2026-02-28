@@ -1,0 +1,20 @@
+    - name: Update BIOS firmware
+      dellemc.openmanage.idrac_firmware:
+        idrac_ip: "{{ inventory_hostname }}"
+        idrac_user: "{{ ansible_ssh_user }}"
+        idrac_password: "{{ ansible_ssh_pass }}"
+        share_name: "{{ nfs_share_path }}"
+        reboot: true
+        job_wait: true
+        apply_update: true
+        validate_certs: false
+        catalog_file_name: "{{ catalog_file_name }}"
+        timeout: 900
+      delegate_to: 127.0.0.1
+      register: update_bios_result
+      tags: [firmware, update]
+
+    - name: Display Update BIOS Result
+      debug:
+        var: update_bios_result
+      tags: [firmware, update]

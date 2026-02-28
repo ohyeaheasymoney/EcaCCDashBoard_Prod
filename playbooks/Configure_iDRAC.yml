@@ -1,0 +1,35 @@
+---
+- name: Configure iDRAC via RACADM using raw module
+  hosts: target_hosts
+  gather_facts: false
+
+  tasks:
+    - name: Set NIC selection to LOM1
+      raw: racadm set idrac.NIC.selection LOM1
+
+    - name: Enable DNS registration
+      raw: racadm set idrac.NIC.DNSRegister 1
+
+    - name: Enable DHCP
+      raw: racadm set iDRAC.IPv4.DHCPEnable 1
+
+    - name: Set legacy PXE boot protocol
+      raw: racadm set NIC.NICConfig 3 legacybootproto PXE
+
+    - name: Disable USB ports
+      raw: racadm set BIOS.IntegratedDevices.UsbPorts AllOff
+
+    - name: Disable hot spare
+      raw: racadm set System.Power.Hotspare.Enable 0
+
+    - name: Set boot mode to UEFI
+      raw: racadm set BIOS.BiosBootSettings.BootMode Uefi
+
+    - name: Set UEFI boot sequence
+      raw: racadm set BIOS.BootSettings.UefiBootSeq NIC.PxeDevice.1-1,BOSS.SL.6-1
+
+    - name: Create job for BIOS setup
+      raw: racadm jobqueue create BIOS.Setup.1-1
+
+    - name: Power cycle the server
+      raw: racadm serveraction powercycle

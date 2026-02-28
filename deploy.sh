@@ -1,0 +1,171 @@
+#!/bin/bash
+# ──────────────────────────────────────────────────────────────
+# ECA Command Center — Quick Deployment Script
+# ──────────────────────────────────────────────────────────────
+# Usage:  sudo bash deploy.sh
+#
+# This script:
+#   1. Installs system dependencies (Python3, pip, ansible, arp-scan)
+#   2. Creates the app directory and copies files
+#   3. Installs Python packages in a virtualenv
+#   4. Sets up the playbook directory
+#   5. Configures sudoers for arp-scan
+#   6. Optionally installs nginx + systemd service
+# ──────────────────────────────────────────────────────────────
+
+set -e
+
+# ─── Config ───
+APP_USER="${ECA_USER:-eca}"
+APP_DIR="${ECA_APP_DIR:-/home/$APP_USER/eca-command-center}"
+PLAYBOOK_DIR="${ECA_PLAYBOOK_DIR:-/var/lib/rundeck/projects/ansible/DellServerAuto/MainPlayBook/Test4/DellServerAuto_4}"
+PORT="${ECA_PORT:-5000}"
+
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+NC='\033[0m'
+
+log()  { echo -e "${GREEN}[ECA]${NC} $1"; }
+warn() { echo -e "${YELLOW}[WARN]${NC} $1"; }
+err()  { echo -e "${RED}[ERROR]${NC} $1"; exit 1; }
+
+# ─── Pre-checks ───
+if [ "$EUID" -ne 0 ]; then
+    err "Please run as root: sudo bash deploy.sh"
+fi
+
+log "Starting ECA Command Center deployment..."
+
+# ─── 1. System packages ───
+log "Installing system dependencies..."
+if command -v dnf &>/dev/null; then
+    dnf install -y python3 python3-pip python3-devel gcc arp-scan ansible-core 2>/dev/null || true
+elif command -v yum &>/dev/null; then
+    yum install -y python3 python3-pip python3-devel gcc arp-scan ansible 2>/dev/null || true
+elif command -v apt-get &>/dev/null; then
+    apt-get update -qq
+    apt-get install -y python3 python3-pip python3-venv python3-dev gcc arp-scan ansible 2>/dev/null || true
+fi
+
+# ─── 2. Create app user if needed ───
+if ! id "$APP_USER" &>/dev/null; then
+    log "Creating user: $APP_USER"
+    useradd -m -s /bin/bash "$APP_USER"
+fi
+
+# ─── 3. Copy app files ───
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+log "Deploying app to $APP_DIR ..."
+
+mkdir -p "$APP_DIR"
+# Copy GUI files
+cp "$SCRIPT_DIR/server.py" "$APP_DIR/"
+cp "$SCRIPT_DIR/config_backend.py" "$APP_DIR/"
+cp "$SCRIPT_DIR/manage_users.py" "$APP_DIR/"
+cp "$SCRIPT_DIR/requirements.txt" "$APP_DIR/"
+cp "$SCRIPT_DIR/start.sh" "$APP_DIR/"
+cp "$SCRIPT_DIR/nginx.conf" "$APP_DIR/"
+cp "$SCRIPT_DIR/README.md" "$APP_DIR/" 2>/dev/null || true
+chmod +x "$APP_DIR/start.sh"
+
+# Copy static files
+mkdir -p "$APP_DIR/static"
+cp "$SCRIPT_DIR"/static/*.js "$APP_DIR/static/"
+cp "$SCRIPT_DIR"/static/*.html "$APP_DIR/static/" 2>/dev/null || true
+cp "$SCRIPT_DIR"/static/index.html "$APP_DIR/static/" 2>/dev/null || true
+cp "$SCRIPT_DIR"/static/*.css "$APP_DIR/static/"
+cp "$SCRIPT_DIR"/static/*.svg "$APP_DIR/static/" 2>/dev/null || true
+
+# Copy playbooks
+log "Deploying playbooks to $PLAYBOOK_DIR ..."
+mkdir -p "$PLAYBOOK_DIR"
+if [ -d "$SCRIPT_DIR/playbooks" ]; then
+    cp "$SCRIPT_DIR"/playbooks/*.yaml "$PLAYBOOK_DIR/" 2>/dev/null || true
+    cp "$SCRIPT_DIR"/playbooks/*.yml "$PLAYBOOK_DIR/" 2>/dev/null || true
+    cp "$SCRIPT_DIR"/playbooks/*.py "$PLAYBOOK_DIR/" 2>/dev/null || true
+    cp "$SCRIPT_DIR"/playbooks/*.cfg "$PLAYBOOK_DIR/" 2>/dev/null || true
+    cp "$SCRIPT_DIR"/playbooks/hosts "$PLAYBOOK_DIR/" 2>/dev/null || true
+fi
+
+# Create jobs directory
+mkdir -p "$APP_DIR/jobs"
+
+# ─── 4. Python virtualenv ───
+log "Setting up Python virtualenv..."
+if [ ! -d "$APP_DIR/venv" ]; then
+    python3 -m venv "$APP_DIR/venv"
+fi
+"$APP_DIR/venv/bin/pip" install --upgrade pip -q
+"$APP_DIR/venv/bin/pip" install -r "$APP_DIR/requirements.txt" -q
+log "Python packages installed."
+
+# ─── 5. Fix ownership ───
+chown -R "$APP_USER":"$APP_USER" "$APP_DIR"
+chown -R "$APP_USER":"$APP_USER" "$PLAYBOOK_DIR" 2>/dev/null || true
+
+# ─── 6. Sudoers for arp-scan ───
+SUDOERS_FILE="/etc/sudoers.d/eca-arp-scan"
+if [ ! -f "$SUDOERS_FILE" ]; then
+    log "Configuring sudoers for arp-scan..."
+    echo "$APP_USER ALL=(ALL) NOPASSWD: /usr/sbin/arp-scan" > "$SUDOERS_FILE"
+    chmod 440 "$SUDOERS_FILE"
+fi
+
+# ─── 7. Systemd service ───
+log "Installing systemd service..."
+cat > /etc/systemd/system/eca-command-center.service <<SVCEOF
+[Unit]
+Description=ECA Command Center
+After=network.target
+
+[Service]
+Type=simple
+User=$APP_USER
+Group=$APP_USER
+WorkingDirectory=$APP_DIR
+Environment="PATH=$APP_DIR/venv/bin:/usr/local/bin:/usr/bin:/bin"
+ExecStart=$APP_DIR/venv/bin/gunicorn server:app -w 4 --threads 4 -b 0.0.0.0:$PORT --timeout 300
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target
+SVCEOF
+
+systemctl daemon-reload
+systemctl enable eca-command-center
+systemctl restart eca-command-center
+
+# ─── 8. Create default admin user ───
+log "Ensuring default admin account exists..."
+cd "$APP_DIR"
+"$APP_DIR/venv/bin/python3" -c "import config_backend; config_backend._create_default_users()" 2>/dev/null || true
+
+# ─── 9. Optional nginx ───
+if command -v nginx &>/dev/null; then
+    log "Configuring nginx reverse proxy..."
+    sed "s|/home/eca/Downloads/UI/ansible-ui|$APP_DIR|g" "$APP_DIR/nginx.conf" > /etc/nginx/conf.d/eca.conf
+    nginx -t 2>/dev/null && systemctl reload nginx
+    log "Nginx configured — access UI at http://$(hostname -I | awk '{print $1}')/"
+else
+    warn "Nginx not installed. Access UI directly at http://$(hostname -I | awk '{print $1}'):$PORT/"
+fi
+
+# ─── Done ───
+echo ""
+echo "════════════════════════════════════════════════════════════"
+echo -e "  ${GREEN}ECA Command Center deployed successfully!${NC}"
+echo "════════════════════════════════════════════════════════════"
+echo ""
+echo "  App directory:     $APP_DIR"
+echo "  Playbook directory: $PLAYBOOK_DIR"
+echo "  Service:           systemctl status eca-command-center"
+echo "  Default login:     admin / admin"
+echo ""
+echo "  Manage users:      cd $APP_DIR && venv/bin/python3 manage_users.py list"
+echo "  View logs:         journalctl -u eca-command-center -f"
+echo ""
+echo "  IMPORTANT: Change the default admin password after first login:"
+echo "    cd $APP_DIR && venv/bin/python3 manage_users.py add admin <new-password> --role admin"
+echo ""

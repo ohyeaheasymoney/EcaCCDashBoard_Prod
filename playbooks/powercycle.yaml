@@ -1,0 +1,10 @@
+- name: System Power Off 
+  raw: racadm serveraction powercycle
+  register: racadm_output
+  changed_when: false
+  tags: [powercycle, reboot]
+
+- name: Debug PowerCycle Output
+  debug:
+    msg: "{{ racadm_output.stdout }}"
+  tags: [powercycle, reboot]

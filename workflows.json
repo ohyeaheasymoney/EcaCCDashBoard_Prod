@@ -1,0 +1,287 @@
+{
+  "configbuild": {
+    "label": "Server Build & Configure",
+    "category": "Server",
+    "description": "Builds and configures the server based on the selected build standard.",
+    "tasks": {
+      "configbuild_i": [
+        {
+          "id": "powerup",
+          "label": "PowerUp",
+          "tags": [
+            "powerup"
+          ]
+        },
+        {
+          "id": "lldp",
+          "label": "Enable LLDP",
+          "tags": [
+            "lldp"
+          ]
+        },
+        {
+          "id": "rackslot",
+          "label": "RackSlot",
+          "tags": [
+            "rackslot"
+          ]
+        },
+        {
+          "id": "assettag",
+          "label": "Asset Tag",
+          "tags": [
+            "assettag"
+          ]
+        },
+        {
+          "id": "firmware",
+          "label": "Firmware",
+          "tags": [
+            "update"
+          ]
+        },
+        {
+          "id": "powercycle1",
+          "label": "Power Cycle",
+          "tags": [
+            "reboot"
+          ]
+        },
+        {
+          "id": "importxml",
+          "label": "Import XML",
+          "tags": [
+            "xml"
+          ]
+        }
+      ],
+      "configbuild_j": [
+        {
+          "id": "powerup_j",
+          "label": "PowerUp",
+          "tags": [
+            "powerup"
+          ]
+        },
+        {
+          "id": "lldp_j",
+          "label": "Enable LLDP",
+          "tags": [
+            "lldp"
+          ]
+        },
+        {
+          "id": "rackslot_j",
+          "label": "RackSlot",
+          "tags": [
+            "rackslot"
+          ]
+        },
+        {
+          "id": "assettag_j",
+          "label": "Asset Tag",
+          "tags": [
+            "assettag"
+          ]
+        },
+        {
+          "id": "firmware_j",
+          "label": "Firmware",
+          "tags": [
+            "update"
+          ]
+        },
+        {
+          "id": "powercycle1_j",
+          "label": "Power Cycle",
+          "tags": [
+            "reboot"
+          ]
+        },
+        {
+          "id": "idrac_j",
+          "label": "Configure iDRAC",
+          "tags": [
+            "xml"
+          ]
+        }
+      ]
+    }
+  },
+  "postprov": {
+    "label": "Post-Provisioning Setup",
+    "category": "Server",
+    "description": "Executes post-provisioning automation after the base build is complete.",
+    "tasks": {
+      "postprov": [
+        {
+          "id": "diagnostics",
+          "label": "Diagnostics",
+          "tags": [
+            "diagnostics"
+          ]
+        },
+        {
+          "id": "disablelldp",
+          "label": "Disable LLDP",
+          "tags": [
+            "disablelld"
+          ]
+        },
+        {
+          "id": "tsr",
+          "label": "Collect/Export TSR",
+          "tags": [
+            "tsr"
+          ]
+        },
+        {
+          "id": "cleanup",
+          "label": "CleanUp",
+          "tags": [
+            "cleanup"
+          ]
+        },
+        {
+          "id": "powerdown",
+          "label": "PowerDown",
+          "tags": [
+            "shutdown"
+          ]
+        }
+      ]
+    }
+  },
+  "quickqc": {
+    "label": "Quick QC Validation",
+    "category": "Server",
+    "description": "Performs quick validation checks to confirm configuration compliance and readiness.",
+    "playbookName": "QuickQC.yaml",
+    "enabled": false,
+    "requiresInventory": true,
+    "requiresWorkbook": false,
+    "requiresFirmware": false,
+    "requiresBiosXml": false,
+    "supportsServerClass": false,
+    "supportsHostLimit": true,
+    "hasTasks": false,
+    "cardInstructions": "Runs entire playbook \u2014 no individual task selection.",
+    "tasks": {
+      "quickqc": []
+    },
+    "lastModified": "2026-02-28 11:23:10"
+  },
+  "cisco_switch": {
+    "label": "Cisco Switch Automation",
+    "category": "Network",
+    "description": "Performs Cisco switch automation setup and firmware updates for deployment readiness.",
+    "playbookName": "",
+    "enabled": false,
+    "requiresInventory": false,
+    "requiresWorkbook": false,
+    "requiresFirmware": false,
+    "requiresBiosXml": false,
+    "supportsServerClass": false,
+    "supportsHostLimit": false,
+    "hasTasks": true,
+    "cardInstructions": "",
+    "tasks": {
+      "cisco_switch": [
+        {
+          "id": "fw_update",
+          "label": "Firmware Update",
+          "tags": [
+            "firmware"
+          ]
+        },
+        {
+          "id": "basic_config",
+          "label": "Basic Config Setup",
+          "tags": [
+            "basic"
+          ]
+        }
+      ]
+    },
+    "lastModified": "2026-02-24 18:52:48"
+  },
+  "juniper_switch": {
+    "label": "Juniper Switch Automation",
+    "category": "Network",
+    "description": "Performs Juniper switch automation setup using workbook-driven mappings and selected port ranges.",
+    "playbookName": "",
+    "enabled": false,
+    "requiresInventory": false,
+    "requiresWorkbook": false,
+    "requiresFirmware": false,
+    "requiresBiosXml": false,
+    "supportsServerClass": false,
+    "supportsHostLimit": false,
+    "hasTasks": true,
+    "cardInstructions": "",
+    "tasks": {
+      "juniper_switch": [
+        {
+          "id": "fw_update_j",
+          "label": "Firmware Update",
+          "tags": [
+            "firmware"
+          ]
+        },
+        {
+          "id": "basic_config_j",
+          "label": "Basic Config Setup",
+          "tags": [
+            "dhcp"
+          ]
+        },
+        {
+          "id": "enable_lldp_j",
+          "label": "Enable LLDP",
+          "tags": [
+            "lldp"
+          ]
+        }
+      ]
+    },
+    "lastModified": "2026-02-24 18:53:52"
+  },
+  "console_switch": {
+    "label": "Console Switch Setup",
+    "category": "Network",
+    "description": "Configures 8-port console switches for serial console access to rack equipment.",
+    "tasks": {
+      "console_switch": [
+        {
+          "id": "fw_update_c",
+          "label": "Firmware Update",
+          "tags": [
+            "firmware"
+          ]
+        },
+        {
+          "id": "basic_config_c",
+          "label": "Basic Config Setup",
+          "tags": [
+            "dhcp"
+          ]
+        },
+        {
+          "id": "enable_lldp_c",
+          "label": "Enable LLDP",
+          "tags": [
+            "lldp"
+          ]
+        }
+      ]
+    }
+  },
+  "pdu": {
+    "label": "PDU Setup",
+    "category": "Power",
+    "description": "Configures rack PDUs using a power cable mapping file.",
+    "tasks": {
+      "pdu": []
+    }
+  }
+}

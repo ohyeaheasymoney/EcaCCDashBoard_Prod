@@ -1,0 +1,36 @@
+# ───── iDRAC Credentials (from inventory) ─────
+idrac_user: "{{ ansible_ssh_user }}"
+idrac_password: "{{ ansible_ssh_pass }}"
+idrac_ip: "{{ inventory_hostname }}"  # iDRAC IP pulled from inventory
+
+# ───── File Paths ─────
+local_path: "/home/eca/eca-command-center"
+local_path_tsr: "/home/eca/eca-command-center/TSR"          # Path for TSR exports
+local_path_QuickQC: "/home/eca/eca-command-center/QuickQC"  # Path for QuickQC inventory exports
+nfs_share_path: "10.3.3.157:/home/eca/eca-command-center/Firmware"
+
+# ───── File Names ─────
+scp_file_name: "config_9_20.xml"             # BIOS Configuration file
+catalog_file_name: "catalog.xml"  # Dell Firmware Catalog
+mapping_file: "asset_db_tags2.csv"           # Rack location mapping
+asset_tag_mapping_file: "asset_db_tags2.csv" # Asset tag mapping
+
+# ───── Power & Shutdown ─────
+shutdown_type: "Graceful"
+end_host_power_state: "On"
+
+# ───── Job Execution Options ─────
+job_wait: true
+validate_certs: false
+run_mode: "express"
+
+# ───── Pause Timing (in seconds) ─────
+# Controls timing between each major stage in ConfigMain._J_class.yaml and ConfigMain._I_class.yaml
+pause_powerup_seconds: 300        # 5 minutes after PowerUp
+pause_lldp_seconds: 300           # 5 minutes after LLDP enable
+pause_provision_seconds: 420      # 7 minutes after RackSlot & Asset Tag
+pause_firmware_seconds: 300       # 5 minutes after Firmware update
+pause_reboot_seconds: 300         # 5 minutes after Power Cycle (mid-run)
+pause_configure_seconds: 300      # 5 minutes after Configure_iDRAC or ImportXML
+pause_powercycle_seconds: 600     # 10 minutes after final Power Cycle
+

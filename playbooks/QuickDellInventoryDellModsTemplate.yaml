@@ -1,0 +1,66 @@
+---
+- name: Quick Dell Inventory with Python post-processing
+  hosts: target_hosts
+  gather_facts: false
+
+  vars_files:
+    - vars.yml
+
+  tasks:
+
+    # ───── System Info ─────
+    - name: Get System Info
+      dellemc.openmanage.idrac_system_info:
+        idrac_ip: "{{ inventory_hostname }}"
+        idrac_user: "{{ idrac_user }}"
+        idrac_password: "{{ idrac_password }}"
+        validate_certs: "{{ validate_certs }}"
+      register: sysinfo
+      delegate_to: 127.0.0.1
+
+    # ───── Firmware Info ─────
+    - name: Get Firmware Info
+      dellemc.openmanage.idrac_firmware_info:
+        idrac_ip: "{{ inventory_hostname }}"
+        idrac_user: "{{ idrac_user }}"
+        idrac_password: "{{ idrac_password }}"
+        validate_certs: "{{ validate_certs }}"
+      register: fwinfo
+      delegate_to: 127.0.0.1
+
+    # ───── RackOffset via Redfish ─────
+    - name: Get RackOffset from iDRAC
+      ansible.builtin.command: >
+        curl -s -k -u {{ idrac_user }}:{{ idrac_password }}
+        https://{{ inventory_hostname }}/redfish/v1/Chassis/System.Embedded.1
+        -H "Content-Type: application/json"
+      register: rack_offset_result
+      delegate_to: 127.0.0.1
+
+    - name: Parse RackOffset
+      ansible.builtin.set_fact:
+        rack_offset: "{{ rack_offset_result.stdout | regex_search('\"RackOffset\":\\s*([0-9]+)', '\\1') | default('N/A') }}"
+
+    # ───── Save Combined JSON (per host) ─────
+    - name: Save combined data for formatter
+      ansible.builtin.copy:
+        dest: "{{ local_path }}/dell_inventory_{{ inventory_hostname }}.json"
+        content: |
+          {
+            "host": "{{ inventory_hostname }}",
+            "sysinfo": {{ sysinfo | to_nice_json }},
+            "fwinfo": {{ fwinfo | to_nice_json }},
+            "rack_offset": "{{ rack_offset }}"
+          }
+      delegate_to: 127.0.0.1
+
+    # ───── Run Python Formatter (quiet) ─────
+    - name: Run Python formatter (writes full sorted file)
+      ansible.builtin.command: >
+        python3 format_dell_inventoryTemplate.py
+        {{ local_path }}/dell_inventory_{{ inventory_hostname }}.json
+      delegate_to: 127.0.0.1
+      environment:
+        ANSIBLE_LAST_HOST: "{{ ansible_play_hosts_all | last }}"   # tells script when to finalize
+      changed_when: false
+      no_log: true   # keep the playbook output minimal

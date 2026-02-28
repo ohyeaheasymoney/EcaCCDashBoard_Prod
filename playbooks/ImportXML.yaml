@@ -1,0 +1,39 @@
+- name: Import SCP with all components in XML format
+  dellemc.openmanage.idrac_server_config_profile:
+    idrac_ip: "{{ inventory_hostname }}"
+    idrac_user: "{{ idrac_user }}"
+    idrac_password: "{{ idrac_password }}"
+    share_name: "{{ nfs_share_path }}"
+    command: import
+    scp_file: "{{ scp_file_name }}"
+    shutdown_type: "{{ shutdown_type }}"
+    end_host_power_state: "{{ end_host_power_state }}"
+    job_wait: "{{ job_wait }}"
+    validate_certs: "{{ validate_certs }}"
+    timeout: 900
+  delegate_to: 127.0.0.1
+  register: import_xml_result
+  failed_when: false
+  tags: [import, xml]
+
+# Try to extract the actual message safely
+- name: Display Import Result (only success message)
+  debug:
+    msg: >-
+      {{
+        import_xml_result.msg
+        | default(import_xml_result.Status.Message)
+        | default(import_xml_result.status.Message)
+        | default(import_xml_result.message)
+        | default('Import result message not found')
+      }}
+  when:
+    - import_xml_result is defined
+    - (
+        (import_xml_result.msg is defined and 'Successfully imported' in import_xml_result.msg)
+        or (import_xml_result.Status is defined and 'Successfully imported' in import_xml_result.Status.Message)
+        or (import_xml_result.status is defined and 'Successfully imported' in import_xml_result.status.Message)
+        or (import_xml_result.message is defined and 'Successfully imported' in import_xml_result.message)
+      )
+  tags: [import, xml]
+

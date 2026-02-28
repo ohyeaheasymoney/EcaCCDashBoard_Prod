@@ -1,0 +1,106 @@
+########################################################################
+# ───── Retrieve and Parse Service Tag ─────
+########################################################################
+- name: Get system info from iDRAC
+  raw: racadm getsysinfo
+  register: racadm_output
+  changed_when: false
+  tags: [provision, assettag]
+
+- name: Find all tag matches safely
+  set_fact:
+    svc_tag_matches: "{{ racadm_output.stdout | regex_findall('(?im)(?:SVC\\s*Tag|Service\\s*Tag)\\s*[=:]\\s*([A-Z0-9]+)') }}"
+  failed_when: false
+  changed_when: false
+  tags: [provision, assettag]
+
+- name: Set clean Service Tag fact
+  set_fact:
+    system_service_tag: "{{ (svc_tag_matches | first | default('UNKNOWN')) | trim }}"
+  failed_when: false
+  changed_when: false
+  tags: [provision, assettag]
+
+
+########################################################################
+# ───── Parse Mapping CSV ─────
+########################################################################
+- name: Read mapping CSV file
+  community.general.read_csv:
+    path: "{{ local_path }}/{{ asset_tag_mapping_file }}"
+  register: parsed_csv
+  delegate_to: localhost
+  changed_when: false
+  tags: [provision, assettag]
+
+- name: Find matching CSV row for this Service Tag
+  set_fact:
+    matched_row: >-
+      {{ (parsed_csv.list
+          | selectattr('serial_number', 'equalto', system_service_tag | trim)
+          | list | first | default({})) }}
+  tags: [provision, assettag]
+
+
+########################################################################
+# ───── Apply Asset Tag (only if match found) ─────
+########################################################################
+- name: Display target info from CSV
+  debug:
+    msg: >
+      {{ inventory_hostname }} | Setting AssetTag='{{ matched_row.asset_tag | default('N/A') }}'
+      for ServiceTag='{{ system_service_tag }}'
+  when:
+    - matched_row != {}
+    - (matched_row.asset_tag | default('')) | length > 0
+    - system_service_tag != 'UNKNOWN'
+  tags: [provision, assettag]
+
+- name: Apply Asset Tag via RACADM (BIOS context)
+  raw: >
+    racadm set BIOS.MiscSettings.AssetTag "{{ matched_row.asset_tag | trim }}"
+  register: asset_tag_result
+  no_log: true
+  when:
+    - matched_row != {}
+    - (matched_row.asset_tag | default('')) | length > 0
+    - system_service_tag != 'UNKNOWN'
+  tags: [provision, assettag]
+
+
+########################################################################
+# ───── Queue BIOS Job (silent) ─────
+########################################################################
+- name: Queue BIOS job (graceful reboot to apply tag)
+  raw: >
+    racadm jobqueue create BIOS.Setup.1-1 -r graceful
+  register: reboot_result
+  no_log: true
+  when:
+    - asset_tag_result is defined
+    - asset_tag_result.stdout is defined
+    - system_service_tag != 'UNKNOWN'
+  changed_when: "'JID_' in (reboot_result.stdout | default(''))"
+  tags: [provision, assettag]
+
+
+########################################################################
+# ───── Verify and Display Final Summary ─────
+########################################################################
+- name: Verify Asset Tag
+  raw: racadm get BIOS.MiscSettings.AssetTag
+  register: asset_tag_check
+  changed_when: false
+  when:
+    - matched_row != {}
+    - (matched_row.asset_tag | default('')) | length > 0
+    - system_service_tag != 'UNKNOWN'
+  tags: [provision, assettag]
+
+- name: Final Summary
+  ansible.builtin.debug:
+    msg: >
+      ✅ {{ inventory_hostname }} | ServiceTag={{ system_service_tag }}
+      | AssetTag={{ matched_row.asset_tag | default('N/A') }}
+      | Verified={{ (asset_tag_check.stdout | default('N/A')) | trim }}
+  tags: [provision, assettag]

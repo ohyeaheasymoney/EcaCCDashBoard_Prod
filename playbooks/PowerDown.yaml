@@ -1,0 +1,9 @@
+    - name: System Power Off 
+      raw: racadm serveraction powerdown
+      register: racadm_output
+      changed_when: false
+      tags: [powerdown, shutdown]
+
+    - debug:
+        msg: "{{ racadm_output.stdout }}"
+      tags: [powerdown, shutdown]

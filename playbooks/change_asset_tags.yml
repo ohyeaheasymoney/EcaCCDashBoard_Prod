@@ -1,0 +1,37 @@
+---
+# ───── Loop Quietly Through Mapping Entries ─────
+- name: Apply asset tag if serial matches detected SVC Tag
+  vars:
+    svc_tag_clean: "{{ svc_tag.stdout | default('') | trim }}"
+  loop: "{{ parsed_csv.list }}"
+  loop_control:
+    label: "{{ item.serial_number | default('unknown') }}"
+  when:
+    - parsed_csv.list is defined
+    - parsed_csv.list | length > 0
+    - svc_tag_clean | length > 0
+    - item.serial_number is defined
+    - item.serial_number | length > 0
+    - item.asset_tag is defined
+    - item.asset_tag | length > 0
+    - svc_tag_clean in item.serial_number  # Only process the matching row
+  delegate_to: "{{ inventory_hostname }}"
+  tags: [assettag, provision]
+
+  tasks:
+    - name: Set asset tag on iDRAC
+      raw: "racadm set BIOS.MiscSettings.AssetTag {{ item.asset_tag }}"
+      register: set_tag_result
+      failed_when: false
+      no_log: true
+
+    - name: Queue BIOS reboot after tag update
+      raw: "racadm jobqueue create BIOS.Setup.1-1 -r graceful"
+      register: reboot_result
+      failed_when: false
+      no_log: true
+
+    - name: Display success summary
+      debug:
+        msg: "✅ Applied asset tag '{{ item.asset_tag }}' for SVC Tag '{{ svc_tag_clean }}'."
+

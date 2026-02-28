@@ -1,0 +1,37 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+venv/
+.venv/
+
+# Runtime data
+jobs/jobs.db
+jobs/jobs.db-shm
+jobs/jobs.db-wal
+jobs/*/runs/
+jobs/*/TSR/
+jobs/*/QuickQC/
+jobs/*/firmware/
+jobs/*/uploads/
+
+# Logs
+*.log
+server.log
+
+# Cached catalog
+dell_catalog_cache.xml
+
+# Secrets / credentials
+users.json
+customers.json
+hosts
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+.claude/

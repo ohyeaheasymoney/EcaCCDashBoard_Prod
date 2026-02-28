@@ -1,0 +1,90 @@
+########################################################################
+# ───── Retrieve and Parse Service Tag ─────
+########################################################################
+- name: Get system info from iDRAC
+  raw: racadm getsysinfo
+  register: racadm_output
+  changed_when: false
+  tags: [rackslot, provision]
+
+- name: Find all tag matches safely
+  set_fact:
+    svc_tag_matches: "{{ racadm_output.stdout | regex_findall('(?im)(?:SVC\\s*Tag|Service\\s*Tag)\\s*[=:]\\s*([A-Z0-9]+)') }}"
+  failed_when: false
+  changed_when: false
+  tags: [rackslot, provision]
+
+- name: Set clean Service Tag fact
+  set_fact:
+    system_service_tag: "{{ (svc_tag_matches | first | default('UNKNOWN')) | trim }}"
+  failed_when: false
+  changed_when: false
+  tags: [rackslot, provision]
+
+
+########################################################################
+# ───── Parse Mapping CSV ─────
+########################################################################
+- name: Read mapping CSV file
+  community.general.read_csv:
+    path: "{{ local_path }}/{{ mapping_file }}"
+  register: parsed_csv
+  delegate_to: localhost
+  changed_when: false
+  tags: [rackslot, provision]
+
+- name: Find matching CSV row for this Service Tag
+  set_fact:
+    matched_row: >-
+      {{ (parsed_csv.list
+          | selectattr('serial_number', 'equalto', system_service_tag | trim)
+          | list | first | default({})) }}
+  tags: [rackslot, provision]
+
+
+########################################################################
+# ───── Apply RackSlot (only if match found) ─────
+########################################################################
+- name: Display target info from CSV
+  debug:
+    msg: >
+      {{ inventory_hostname }} | Setting RackSlot='{{ matched_row.rack_unit | default('N/A') }}'
+      for ServiceTag='{{ system_service_tag }}'
+  when:
+    - matched_row != {}
+    - (matched_row.rack_unit | default('')) | length > 0
+    - system_service_tag != 'UNKNOWN'
+  tags: [rackslot, provision]
+
+- name: Apply RackSlot via RACADM
+  raw: >
+    racadm set System.ServerTopology.RackSlot "{{ matched_row.rack_unit | trim }}"
+  register: rack_slot_result
+  no_log: true
+  when:
+    - matched_row != {}
+    - (matched_row.rack_unit | default('')) | length > 0
+    - system_service_tag != 'UNKNOWN'
+  tags: [rackslot, provision]
+
+
+########################################################################
+# ───── Verify and Display Final Summary ─────
+########################################################################
+- name: Verify RackSlot
+  raw: racadm get System.ServerTopology.RackSlot
+  register: rack_slot_check
+  changed_when: false
+  when:
+    - matched_row != {}
+    - (matched_row.rack_unit | default('')) | length > 0
+    - system_service_tag != 'UNKNOWN'
+  tags: [rackslot, provision]
+
+- name: Final Summary
+  ansible.builtin.debug:
+    msg: >
+      ✅ {{ inventory_hostname }} | ServiceTag={{ system_service_tag }}
+      | RackSlot={{ matched_row.rack_unit | default('N/A') }}
+      | Verified={{ (rack_slot_check.stdout | default('N/A')) | trim }}
+  tags: [rackslot, provision]

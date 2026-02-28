@@ -1,0 +1,34 @@
+# changeracklocation.yml
+
+# ───── Display Target RackSlot Info ─────
+- name: Show rack unit info
+  debug:
+    msg: "Setting RackSlot '{{ serial_and_rack_location[1] }}' for serial '{{ serial_and_rack_location[0] }}'."
+
+# ───── Set RackSlot ─────
+- name: Update Rack Location on iDRAC
+  raw: "racadm set System.ServerTopology.RackSlot {{ serial_and_rack_location[1] }}"
+  delegate_to: "{{ inventory_hostname }}"
+  when: serial_and_rack_location[0] in racadm_output_text
+  register: rack_slot_result
+  tags: [rackslot, provision]
+
+- name: Show result of RackSlot update
+  debug:
+    var: rack_slot_result.stdout_lines
+  when: rack_slot_result is defined
+  tags: [rackslot, provision]
+
+# ───── Schedule Graceful Reboot ─────
+- name: Reboot system via job queue (Graceful)
+  raw: "racadm jobqueue create BIOS.Setup.1-1 -r graceful"
+  delegate_to: "{{ inventory_hostname }}"
+  when: serial_and_rack_location[0] in racadm_output_text
+  register: reboot_result
+  tags: [rackslot, provision]
+
+- name: Show reboot result
+  debug:
+    var: reboot_result.stdout_lines
+  when: reboot_result is defined
+  tags: [rackslot, provision]

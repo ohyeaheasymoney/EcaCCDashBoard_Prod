@@ -1,0 +1,9 @@
+    - name: System Power On 
+      raw: racadm serveraction powerup
+      register: racadm_output
+      changed_when: false
+      tags: [powerup, provision]
+
+    - debug:
+        msg: "{{ racadm_output.stdout }}"
+      tags: [powerup, provision]
