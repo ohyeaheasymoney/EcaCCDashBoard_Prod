@@ -794,7 +794,7 @@ WORKFLOW_PLAYBOOKS = {
 ALLOWED_UPLOAD_EXTS = {".csv", ".xml", ".yml", ".yaml", ".exe", ".bin", ".img", ".tgz"}
 
 # Max concurrent ansible-playbook runs across all workers
-MAX_CONCURRENT_RUNS = 50
+MAX_CONCURRENT_RUNS = int(os.environ.get("ECA_MAX_CONCURRENT_RUNS", "50"))
 
 
 # ─────────────────────────────────────────────────────────────

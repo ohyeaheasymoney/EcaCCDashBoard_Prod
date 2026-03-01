@@ -90,7 +90,13 @@ if [ ! -f "$APP_DIR/.env" ] && [ -f "$APP_DIR/.env.example" ]; then
     sed -i "s|^ECA_APP_DIR=.*|ECA_APP_DIR=$APP_DIR|" "$APP_DIR/.env"
     sed -i "s|^ECA_PLAYBOOK_DIR=.*|ECA_PLAYBOOK_DIR=$PLAYBOOK_DIR|" "$APP_DIR/.env"
     sed -i "s|^ECA_NFS_HOST=.*|ECA_NFS_HOST=$NFS_HOST|" "$APP_DIR/.env"
-    log "Created .env from template"
+    # Auto-generate a secret key for session persistence
+    SECRET_KEY=$(python3 -c "import secrets; print(secrets.token_hex(32))")
+    sed -i "s|^ECA_SECRET_KEY=.*|ECA_SECRET_KEY=$SECRET_KEY|" "$APP_DIR/.env"
+    # Set CORS to allow the server's own IP
+    SERVER_IP=$(hostname -I | awk '{print $1}')
+    sed -i "s|^ECA_CORS_ORIGINS=.*|ECA_CORS_ORIGINS=http://${SERVER_IP},http://${SERVER_IP}:${PORT},http://localhost:${PORT}|" "$APP_DIR/.env"
+    log "Created .env with auto-generated secret key"
 fi
 
 # Copy static files
@@ -110,10 +116,19 @@ if [ -d "$SCRIPT_DIR/playbooks" ]; then
     cp "$SCRIPT_DIR"/playbooks/*.py "$PLAYBOOK_DIR/" 2>/dev/null || true
     cp "$SCRIPT_DIR"/playbooks/*.cfg "$PLAYBOOK_DIR/" 2>/dev/null || true
     cp "$SCRIPT_DIR"/playbooks/hosts "$PLAYBOOK_DIR/" 2>/dev/null || true
+
+    # Patch vars.yml with actual deployment paths and NFS host
+    if [ -f "$PLAYBOOK_DIR/vars.yml" ]; then
+        sed -i "s|local_path:.*|local_path: \"$APP_DIR\"|" "$PLAYBOOK_DIR/vars.yml"
+        sed -i "s|local_path_tsr:.*|local_path_tsr: \"$APP_DIR/TSR\"|" "$PLAYBOOK_DIR/vars.yml"
+        sed -i "s|local_path_QuickQC:.*|local_path_QuickQC: \"$APP_DIR/QuickQC\"|" "$PLAYBOOK_DIR/vars.yml"
+        sed -i "s|nfs_share_path:.*|nfs_share_path: \"$NFS_HOST:$APP_DIR/Firmware\"|" "$PLAYBOOK_DIR/vars.yml"
+        log "Patched vars.yml with deployment paths (NFS: $NFS_HOST)"
+    fi
 fi
 
-# Create jobs directory
-mkdir -p "$APP_DIR/jobs"
+# Create jobs directory and runtime directories
+mkdir -p "$APP_DIR/jobs" "$APP_DIR/backups"
 
 # ─── 4. Python virtualenv ───
 log "Setting up Python virtualenv..."

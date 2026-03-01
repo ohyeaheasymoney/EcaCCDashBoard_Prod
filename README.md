@@ -4,8 +4,33 @@ Production deployment of the ECA Command Center, a web-based automation platform
 
 ---
 
+## Quick Start (3 Commands)
+
+```bash
+git clone git@github.com:ohyeaheasymoney/EcaCCDashBoard_Prod.git
+cd EcaCCDashBoard_Prod
+make full-deploy
+```
+
+This runs: **preflight checks** → **deploy** → **smoke tests** — fully automated.
+
+Or step by step:
+
+```bash
+sudo bash scripts/preflight-check.sh   # Validate environment
+sudo bash deploy.sh                     # Install everything
+bash scripts/post-deploy-test.sh        # Verify it works
+```
+
+After deployment, access the UI at `http://<server-ip>/` and log in with `admin` / `admin`.
+
+> Run `make help` to see all available commands.
+
+---
+
 ## Table of Contents
 
+- [Quick Start](#quick-start-3-commands)
 - [Features](#features)
 - [Architecture](#architecture)
 - [Infrastructure Requirements](#infrastructure-requirements)
@@ -22,6 +47,7 @@ Production deployment of the ECA Command Center, a web-based automation platform
 - [NFS Share Setup](#nfs-share-setup)
 - [Firewall Rules](#firewall-rules)
 - [CI/CD Pipeline](#cicd-pipeline)
+- [Make Commands Reference](#make-commands-reference)
 - [Troubleshooting](#troubleshooting)
 
 ---
@@ -159,7 +185,11 @@ EcaCCDashBoard_Prod/
 ├── eca-command-center.service   # systemd unit file (version-controlled)
 ├── eca-command-center.logrotate # Log rotation configuration
 │
+├── Makefile                     # Quick-reference commands (make help)
+│
 ├── scripts/                     # Operational scripts
+│   ├── preflight-check.sh       # Pre-deployment environment validation
+│   ├── post-deploy-test.sh      # Post-deployment smoke tests
 │   ├── backup.sh                # Database & config backup (cron-ready)
 │   └── restore.sh               # Restore from backup archive
 │
@@ -244,21 +274,32 @@ EcaCCDashBoard_Prod/
 git clone git@github.com:ohyeaheasymoney/EcaCCDashBoard_Prod.git
 cd EcaCCDashBoard_Prod
 
-# 2. Run the deployment script as root
+# 2. Pre-flight check (validates packages, Python, NFS, disk, network)
+sudo bash scripts/preflight-check.sh
+
+# 3. Deploy (installs everything, creates .env with auto-generated secret key)
 sudo bash deploy.sh
+
+# 4. Verify deployment (checks service, health endpoint, nginx, database, NFS)
+bash scripts/post-deploy-test.sh
 ```
+
+Or run all three in one command: `make full-deploy`
 
 The `deploy.sh` script handles everything:
 1. Installs system packages (Python3, pip, ansible-core, arp-scan, gcc)
 2. Creates the `eca` user if it doesn't exist
 3. Copies app files to `/home/eca/eca-command-center`
-4. Deploys playbooks to the playbook directory
-5. Creates a Python virtualenv and installs dependencies
-6. Sets file ownership
-7. Configures sudoers for `arp-scan` (NOPASSWD)
-8. Creates and enables the `eca-command-center` systemd service
-9. Configures Nginx reverse proxy (if nginx is installed)
-10. Creates the default admin user (`admin`/`admin`)
+4. Deploys playbooks and patches `vars.yml` with correct paths + NFS host
+5. Creates `.env` from template with auto-generated secret key + CORS config
+6. Creates a Python virtualenv and installs dependencies
+7. Sets file ownership
+8. Configures sudoers for `arp-scan` (NOPASSWD)
+9. Creates and enables the `eca-command-center` systemd service
+10. Installs logrotate configuration
+11. Sets up daily backup cron job (2:00 AM)
+12. Configures Nginx reverse proxy (if nginx is installed)
+13. Creates the default admin user (`admin`/`admin`)
 
 ### Option B: Manual Deployment
 
@@ -397,8 +438,11 @@ cp .env.example .env
 | `ECA_MAX_REQUESTS` | `1000` | Restart worker after N requests (memory leak prevention) |
 | `ECA_PLAYBOOK_DIR` | `/var/lib/rundeck/.../DellServerAuto_4` | Ansible playbook directory |
 | `ECA_NFS_HOST` | `10.3.3.157` | NFS server for firmware storage |
+| `ECA_SECRET_KEY` | *(auto-generated)* | Flask session secret — set for session persistence across restarts |
+| `ECA_CORS_ORIGINS` | `*` | Comma-separated allowed CORS origins |
+| `ECA_MAX_CONCURRENT_RUNS` | `50` | Max simultaneous ansible-playbook processes |
 
-The `deploy.sh` script automatically creates `.env` from `.env.example` during installation. The `start.sh` launcher sources `.env` at startup.
+The `deploy.sh` script automatically creates `.env` from `.env.example` during installation with an auto-generated secret key and CORS origins configured to the server's IP. The `start.sh` launcher sources `.env` at startup.
 
 ---
 
@@ -651,6 +695,35 @@ GitHub Actions runs on every push and PR to `main`:
 4. **Docker Build** — Builds the container image and verifies it starts with a health check
 
 The workflow is defined in `.github/workflows/ci.yml`.
+
+---
+
+## Make Commands Reference
+
+Run `make help` to see all commands. Summary:
+
+| Command | Description |
+|---------|-------------|
+| `make full-deploy` | Preflight + Deploy + Verify (one command) |
+| `make preflight` | Run pre-flight environment checks |
+| `make deploy` | Run the deployment script |
+| `make verify` | Run post-deployment smoke tests |
+| `make status` | Show service status |
+| `make logs` | Tail live service logs |
+| `make restart` | Restart the service |
+| `make health` | Check the `/api/health` endpoint |
+| `make users` | List all users |
+| `make add-admin` | Add an admin user (interactive) |
+| `make add-user` | Add an operator user (interactive) |
+| `make backup` | Run a manual backup |
+| `make list-backups` | List available backups |
+| `make restore FILE=...` | Restore from a backup |
+| `make check-nfs` | Test NFS server connectivity |
+| `make docker-up` | Start with Docker Compose |
+| `make docker-down` | Stop Docker Compose stack |
+| `make dev` | Run Flask dev server with auto-reload |
+| `make lint` | Run Python linter |
+| `make validate-playbooks` | Validate playbook YAML syntax |
 
 ---
 
