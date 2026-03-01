@@ -441,6 +441,8 @@ cp .env.example .env
 | `ECA_SECRET_KEY` | *(auto-generated)* | Flask session secret — set for session persistence across restarts |
 | `ECA_CORS_ORIGINS` | `*` | Comma-separated allowed CORS origins |
 | `ECA_MAX_CONCURRENT_RUNS` | `50` | Max simultaneous ansible-playbook processes |
+| `ECA_SSH_USER` | `root` | Default SSH user for iDRAC inventory generation |
+| `ECA_SSH_PASS` | `calvin` | Default SSH password for iDRAC (Dell factory default) |
 
 The `deploy.sh` script automatically creates `.env` from `.env.example` during installation with an auto-generated secret key and CORS origins configured to the server's IP. The `start.sh` launcher sources `.env` at startup.
 

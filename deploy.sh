@@ -107,6 +107,14 @@ cp "$SCRIPT_DIR"/static/index.html "$APP_DIR/static/" 2>/dev/null || true
 cp "$SCRIPT_DIR"/static/*.css "$APP_DIR/static/"
 cp "$SCRIPT_DIR"/static/*.svg "$APP_DIR/static/" 2>/dev/null || true
 
+# Patch ui-config.js with actual server IP and playbook path
+SERVER_IP="${SERVER_IP:-$(hostname -I | awk '{print $1}')}"
+if [ -f "$APP_DIR/static/ui-config.js" ]; then
+    sed -i "s|controlIP:.*|controlIP: \"${SERVER_IP}\",|" "$APP_DIR/static/ui-config.js"
+    sed -i "s|playbookRoot:.*|playbookRoot: \"${PLAYBOOK_DIR}\",|" "$APP_DIR/static/ui-config.js"
+    log "Patched ui-config.js (controlIP: $SERVER_IP)"
+fi
+
 # Copy playbooks
 log "Deploying playbooks to $PLAYBOOK_DIR ..."
 mkdir -p "$PLAYBOOK_DIR"

@@ -1,0 +1,9 @@
+# Ansible inventory template
+# This file is auto-generated per job by the GUI inventory generator.
+# To run playbooks manually, add iDRAC IPs below:
+#
+# [target_hosts]
+# 10.0.0.1 ansible_ssh_user=root ansible_ssh_pass=YOUR_IDRAC_PASSWORD
+# 10.0.0.2 ansible_ssh_user=root ansible_ssh_pass=YOUR_IDRAC_PASSWORD
+
+[target_hosts]

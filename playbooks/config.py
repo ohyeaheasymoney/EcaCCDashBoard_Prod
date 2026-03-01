@@ -17,8 +17,10 @@ MISSING_FILE = f"{PROJECT_DIR}/missing_rack_asset_inventory"
 FAILED_INVENTORY_PATH = f"{PROJECT_DIR}/failed_hosts_inventory"
 
 # ── SSH Credentials ──────────────────────────────────────────────
-SSH_USER = "root"
-SSH_PASS = "HWMPAMP3RHMN"  # Override if needed per environment
+# Override via environment variables: ECA_SSH_USER / ECA_SSH_PASS
+# Or deploy.sh will patch these with values from .env
+SSH_USER = os.environ.get("ECA_SSH_USER", "root")
+SSH_PASS = os.environ.get("ECA_SSH_PASS", "calvin")
 DEFAULT_SSH_USER = SSH_USER
 DEFAULT_SSH_PASS = SSH_PASS
 

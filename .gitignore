@@ -26,7 +26,6 @@ dell_catalog_cache.xml
 .env
 users.json
 customers.json
-hosts
 *.pem
 *.key
 *.crt
